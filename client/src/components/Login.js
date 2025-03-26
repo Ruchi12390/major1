@@ -53,29 +53,31 @@ export default function Login({ onLogin }) {
 
     const handleSubmit = async (event) => {
         event.preventDefault();
-
-        if (!values.email || !values.password) {
-            setErrorText({ ...errorText, global: 'All fields are required' });
-            return;
-        }
-
         try {
             const response = await fetch('http://localhost:5000/api/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(values)
             });
-
+        
             const data = await response.json();
-
+            console.log('Login response:', data); // Check the response data
+        
             if (response.ok) {
-                onLogin(data.token); // Call the onLogin function to update the token
-                localStorage.setItem('role', data.role);
-                if (data.role === 'teacher') {
+                onLogin(data.token);
+    
+                localStorage.setItem('enrollment', data.enrollment);; // Access the role from data.user
+                console.log('Role:', data.enrollment); // Log the correct role
+                
+                if (data.role === 'teacher') { // Access role directly from the data object
+                    navigate('/dash');
+                } else if (data.role === 'admin') { // Access role directly from the data object
                     navigate('/builder');
-                } else {
-                    navigate('/dashboard');
+                }else{
+                    console.log('Student enrollment:', data.enrollment); // Log enrollment
+                    navigate('/student-attendance', { state: { enrollment: data.enrollment } }); // Pass enrollment to state
                 }
+                
             } else {
                 setValues({ ...values, error: data.error });
             }
@@ -83,6 +85,12 @@ export default function Login({ onLogin }) {
             setValues({ ...values, error: 'An error occurred' });
         }
     };
+    
+    
+    
+    
+    
+    
 
     return (
         <Container className="mt-5 signup" style={{ maxWidth: '430px', marginTop: '20px', padding: '20px' }}>

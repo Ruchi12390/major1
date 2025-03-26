@@ -1,19 +1,79 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import AttendanceForm from '../components/forms/AttendanceForm';
-import 'bootstrap/dist/css/bootstrap.min.css'; // Ensure Bootstrap is imported
+import 'bootstrap/dist/css/bootstrap.min.css';
+import './stylesheets/Home.css';
 
 const Attendance = () => {
     const [showAttendanceForm, setShowAttendanceForm] = useState(false);
-    const [students, setStudents] = useState([
-        { id: 1, name: "Meena Chouhan", enrollment: "0801CS21401", present: false },
-        { id: 2, name: "Mohan Patel", enrollment: "0801CS21402", present: false },
-        { id: 3, name: "Ram Sharma", enrollment: "0801CS21403", present: false },
-        { id: 4, name: "Reena Sharma", enrollment: "0801CS21404", present: false },
-        { id: 5, name: "Pallavi Patel", enrollment: "0801CS21405", present: false },
-    ]);
+    const [students, setStudents] = useState([]);
+    const [courses, setCourses] = useState([]);
+    const [courseNames, setCourseNames] = useState({});
+    const [selectedCourse, setSelectedCourse] = useState('');
+    const [selectedSemester, setSelectedSemester] = useState('');
+    const [date, setDate] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    // Fetch students and courses when the component mounts
+    useEffect(() => {
+        const enrollment = localStorage.getItem('enrollment'); 
+        console.log(enrollment);
+    
+        const fetchData = async () => {
+            try {
+                // Fetch students
+                const studentsResponse = await axios.get(`${process.env.REACT_APP_API_URL}/api/students`);
+                setStudents(studentsResponse.data); // Ensure data is fully resolved
+    
+                // Fetch teacher courses based on enrollment
+                const coursesResponse = await axios.get(`${process.env.REACT_APP_API_URL}/api/teacher-courses/${enrollment}`);
+                const coursesData = await coursesResponse.data; // Await the data here
+                console.log(coursesData);
+                setCourses(coursesData); // Set resolved data
+
+                // Fetch course names for each course
+                const names = {};
+                for (const course of coursesData) {
+                    const courseName = await fetchCourseName(course.courseCode);
+                    names[course.courseCode] = courseName;
+                }
+                setCourseNames(names); // Store course names in state
+            } catch (error) {
+                setError('Error fetching data');
+                console.error('Error fetching data:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+    
+        fetchData();
+    }, []);
+
+    // Function to fetch course name from the backend
+    const fetchCourseName = async (courseCode) => {
+        try {
+            const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/course/${courseCode}`);
+            return response.data ? response.data.courseName : null;
+        } catch (error) {
+            console.error('Error fetching course:', error);
+            return null;  // Return null or handle error appropriately
+        }
+    };
+
+    const handleCourseClick = (courseCode, semester) => {
+        setSelectedCourse(courseCode);
+        console.log(courseNames[courseCode]);  // Log the fetched course name
+        setSelectedSemester(semester);
+        setShowAttendanceForm(false);  // Reset attendance form visibility
+    };
 
     const handleShowClick = () => {
-        setShowAttendanceForm(true);
+        if (selectedCourse && selectedSemester && date) {
+            setShowAttendanceForm(true);
+        } else {
+            alert('Please select a date.');
+        }
     };
 
     const handleAttendanceChange = (id, isPresent) => {
@@ -23,8 +83,11 @@ const Attendance = () => {
         setStudents(updatedStudents);
     };
 
+    if (loading) return <p>Loading...</p>;
+    if (error) return <p>{error}</p>;
+
     return (
-        <div className="container mt-4">
+        <div className="container mt-4 new" style={{ maxWidth: '800px', marginTop: '20px', padding: '20px' }}>
             <h6 className="mb-4">
                 Department of Computer Engineering
             </h6>
@@ -32,26 +95,36 @@ const Attendance = () => {
             <div className="row">
                 <div className="col-md-12">
                     <div className="mb-3">
-                        <label htmlFor="course" className="form-label">Course</label>
-                        <input type="text" className="form-control" id="course" name="course" />
-                    </div>
-                    <div className="mb-3">
-                        <label htmlFor="semester" className="form-label">Semester</label>
-                        <input type="text" className="form-control" id="semester" name="semester" />
-                    </div>
-                    <div className="mb-3">
-                        <label htmlFor="subjectCode" className="form-label">Subject Code</label>
-                        <input type="text" className="form-control" id="subjectCode" name="subjectCode" />
+                        <label className="form-label">Courses</label>
+                        <ul className="list-group">
+                            {courses.map(course => (
+                                <li 
+                                    key={course.courseCode} 
+                                    className={`list-group-item ${selectedCourse === course.courseCode ? 'selected-course' : ''}`} 
+                                    onClick={() => handleCourseClick(course.courseCode, course.semester)} // Use courseCode and semester
+                                    style={{ cursor: 'pointer' }}
+                                >
+                                    {courseNames[course.courseCode] || 'Loading...'} - {course.courseCode} (Semester: {course.semester})
+                                </li>
+                            ))}
+                        </ul>
                     </div>
                     <div className="mb-3">
                         <label htmlFor="date" className="form-label">Date</label>
-                        <input type="text" className="form-control" id="date" name="date" />
+                        <input 
+                            type="date" 
+                            className="form-control" 
+                            id="date" 
+                            name="date" 
+                            value={date}
+                            onChange={(e) => setDate(e.target.value)}
+                        />
                     </div>
                     <button 
                         className="btn btn-primary btn-lg"
                         onClick={handleShowClick}
                     >
-                        Show
+                        Mark Attendance
                     </button>
                 </div>
             </div>
@@ -59,6 +132,9 @@ const Attendance = () => {
                 <AttendanceForm 
                     students={students} 
                     onAttendanceChange={handleAttendanceChange} 
+                    selectedCourse={selectedCourse} // Pass selected courseCode to AttendanceForm
+                    selectedSemester={selectedSemester} // Pass selected semester to AttendanceForm
+                    date={date}
                 />
             )}
         </div>

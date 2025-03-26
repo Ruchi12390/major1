@@ -41,7 +41,7 @@ function Courses() {
       }
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('semester', selectedSemester); // Adding semester to form data
+       // Adding semester to form data
   
       try {
         const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/upload-courses`, formData, {

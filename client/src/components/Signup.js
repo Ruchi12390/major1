@@ -5,14 +5,14 @@ import { FaLock } from 'react-icons/fa';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 export default function Signup() {
-    const navigate = useNavigate();
-
+    const navigate = useNavigate()
     const [values, setValues] = useState({
         firstName: '',
         lastName: '',
         password: '',
         email: '',
         role: 'student', // Default role
+        enrollment: '', // Add enrollment to state
         error: ''
     });
 
@@ -67,22 +67,29 @@ export default function Signup() {
 
     const handleSubmit = async (event) => {
         event.preventDefault();
-    
+
         if (!values.firstName || !values.lastName || !values.email || !values.password) {
             setErrorText({ ...errorText, global: 'All fields are required' });
             return;
         }
-    
+
+        const userDetails = {
+            name: values.firstName,
+            email: values.email,
+            password: values.password,
+            role: values.role || 'student', // Default to 'student' if role is not provided
+            enrollment: values.enrollment // Set this based on your requirement
+        };
+        localStorage.setItem('role', userDetails.role);
         try {
             const response = await fetch('http://localhost:5000/api/signup', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(values)
+                body: JSON.stringify(userDetails)
             });
-            
-    
+
             const data = await response.json();
-    
+
             if (response.ok) {
                 navigate('/login');
             } else {
@@ -94,7 +101,7 @@ export default function Signup() {
     };
 
     return (
-        <Container className="mt-5 signup" style={{ maxWidth: '430px', marginTop: '20px',padding:'20px' }}>
+        <Container className="mt-5 signup" style={{ maxWidth: '430px', marginTop: '20px', padding: '20px' }}>
             <div className="text-center mb-4">
                 <FaLock size={50} />
                 <h1 className="h3 mb-3 font-weight-normal">Sign Up</h1>
@@ -154,6 +161,17 @@ export default function Signup() {
                     {errorText.password && <div className="invalid-feedback">{errorText.password}</div>}
                 </FormGroup>
                 <FormGroup>
+                    <Label for="enrollment">Id</Label>
+                    <Input
+                        type="text"
+                        name="enrollment"
+                        id="enrollment"
+                        placeholder="Id"
+                        value={values.enrollment}
+                        onChange={handleInputChange}
+                    />
+                </FormGroup>
+                <FormGroup>
                     <Label for="role">Role</Label>
                     <Input
                         type="select"
@@ -164,6 +182,7 @@ export default function Signup() {
                     >
                         <option value="student">Student</option>
                         <option value="teacher">Teacher</option>
+                        <option value="admin">Admin</option> {/* Added admin role */}
                     </Input>
                 </FormGroup>
                 <Button color="primary" block type="submit">
