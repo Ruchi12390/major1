@@ -13,6 +13,8 @@ const Marks = (props) => {
     const [students, setStudents] = useState([]);
     const [courses, setCourses] = useState([]);
     const [selectedCourseCode, setSelectedCourseCode] = useState('');
+    const [totalStudents, setTotalStudents] = useState(0);
+
     const [selectedSemester, setSelectedSemester] = useState('');
     const [selectedType, setSelectedType] = useState('');
     const [loading, setLoading] = useState(true);
@@ -80,7 +82,8 @@ const Marks = (props) => {
                         }
                     });
                     const filteredStudents = response.data.filter(student => student.semester === selectedSemester);
-                    setStudents(filteredStudents);
+                    setStudents(filteredStudents);                   
+                     setTotalStudents(filteredStudents.length);
                     calculateAttemptedCount(filteredStudents);
                 } catch (error) {
                     console.error('Error fetching students:', error);
@@ -253,37 +256,41 @@ const Marks = (props) => {
 
 
     const computeCOPercentage = () => {
-        const coAttemptedCounts = {}; // Store total attempts for each CO
+        const coAttemptedCounts = {};
         let totalCOs = 0;
         let totalAchieved = 0;
     
-        // Dynamically get total students from students prop
-        const totalStudents = students.length;
-    
-        // Loop through CO mappings
         Object.keys(coValues).forEach(coKey => {
-            let totalAttempts = 0;
+            const questions = Object.keys(coValues[coKey]);
+            let sumAttempts = 0;
     
-            // Loop through questions mapped to the current CO
-            Object.keys(coValues[coKey]).forEach(qKey => {
-                const studentsAttempted = attemptedCount[qKey] || 0; // Students who attempted this question
-                totalAttempts += studentsAttempted; // Accumulate attempts for this CO
+            questions.forEach(qKey => {
+                const count = attemptedCount[qKey] || 0;
+                sumAttempts += count;
             });
     
-            // Calculate ratio
-            const coRatio = totalStudents > 0 ? (totalAttempts / totalStudents).toFixed(9) : "0";
+            const numQuestions = questions.length;
+            
+            // Step 1: Average attempts per question
+            const avgAttemptsPerQuestion = numQuestions > 0 ? sumAttempts / numQuestions : 0;
+            
+            // Step 2: Round to nearest whole number
+            const roundedAttempts = Math.round(avgAttemptsPerQuestion);
+            
+            // Step 3: Divide by total students
+            const coRatio = totalStudents > 0 ? (roundedAttempts / totalStudents).toFixed(3) : "0";
+            
             coAttemptedCounts[coKey] = parseFloat(coRatio);
     
-            // Sum for the achieved value
             totalAchieved += parseFloat(coRatio);
             totalCOs++;
         });
     
-        // Compute final "Achieved" value (average of all CO ratios)
-        const achievedValue = totalCOs > 0 ? (totalAchieved / totalCOs).toFixed(9) : "0";
-    
+        const achievedValue = totalCOs > 0 ? (totalAchieved / totalCOs).toFixed(3) : "0";
         return { coAttemptedCounts, achievedValue };
     };
+    
+    
     
     // Compute CO-wise ratios and overall achievement
     const { coAttemptedCounts, achievedValue } = computeCOPercentage();
