@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import axios from 'axios';
 
-const MarksForm = ({ students, onMarksChange, numQuestions, selectedCourseCode, selectedType }) => {
+const MarksForm = ({ students, onMarksChange, numQuestions, selectedCourseCode, selectedType, setStudents }) => {
     const [error, setError] = useState('');
 
+    // ✅ Save Marks Function
     const handleSaveMarks = async () => {
         const marksData = students.map(student => ({
             studentId: student.enrollment,
@@ -18,7 +19,7 @@ const MarksForm = ({ students, onMarksChange, numQuestions, selectedCourseCode, 
                 examType: selectedType,
             });
 
-            console.log(response.data); // Log the response data
+            console.log(response.data);
             alert('Marks saved successfully!');
         } catch (error) {
             console.error('Error saving marks:', error.response ? error.response.data : error.message);
@@ -26,14 +27,35 @@ const MarksForm = ({ students, onMarksChange, numQuestions, selectedCourseCode, 
         }
     };
 
-    const handleCoMapping = () => {
-        alert('Co Mapping functionality to be implemented.');
+    // ✅ Retrieve Marks Function
+    const handleRetrieveMarks = async () => {
+        try {
+            const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/student-marks/${selectedCourseCode}/${selectedType}`);
+            const data = response.data;
+
+            // Merge marks into students
+            const updatedStudents = students.map(student => {
+                const matched = data.find(mark => mark.studentId === student.enrollment);
+                return {
+                    ...student,
+                    marks: matched ? matched.marks : [],
+                };
+            });
+
+            setStudents(updatedStudents); // update in parent state
+            alert('Marks retrieved successfully!');
+        } catch (err) {
+            console.error('Error retrieving marks:', err);
+            alert('Failed to retrieve marks');
+        }
     };
+
+    // Optional: CO Mapping Placeholder
     const handleCOMappingClick = async () => {
         try {
-            const response = await fetch(`/api/exam-attempts?courseCode=${selectedCourse}&examType=${selectedExamType}`);
+            const response = await fetch(`/api/exam-attempts?courseCode=${selectedCourseCode}&examType=${selectedType}`);
             const data = await response.json();
-    
+
             if (response.ok) {
                 alert(`Number of students attempted the exam: ${data.attempts}`);
             } else {
@@ -43,7 +65,6 @@ const MarksForm = ({ students, onMarksChange, numQuestions, selectedCourseCode, 
             console.error('Error fetching attempts:', error);
         }
     };
-    
 
     return (
         <div className="card p-3 mt-4">
@@ -59,7 +80,7 @@ const MarksForm = ({ students, onMarksChange, numQuestions, selectedCourseCode, 
                                     type="number"
                                     className="form-control"
                                     placeholder={`Q${qIndex + 1}`}
-                                    value={student.marks[qIndex] || ''}
+                                    value={student.marks?.[qIndex] || ''}
                                     onChange={(e) => onMarksChange(student.id, qIndex, e.target.value)}
                                 />
                             </div>
@@ -67,14 +88,17 @@ const MarksForm = ({ students, onMarksChange, numQuestions, selectedCourseCode, 
                     </div>
                 ))}
             </div>
-            
+
             {/* Buttons */}
-            <div className="d-flex justify-content-between mt-3">
+            <div className="d-flex justify-content-between mt-3 flex-wrap gap-2">
                 <button className="btn btn-success" onClick={handleSaveMarks}>
                     Save Marks
                 </button>
+                <button className="btn btn-info" onClick={handleRetrieveMarks}>
+                    Retrieve Marks
+                </button>
                 <button className="btn btn-primary" onClick={handleCOMappingClick}>
-                    Co Mapping
+                    CO Mapping
                 </button>
             </div>
 

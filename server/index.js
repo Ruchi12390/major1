@@ -927,6 +927,19 @@ app.get("/api/course-name/:courseCode", async (req, res) => {
     }
 });
 
+app.get('/api/student-marks/:courseCode/:examType', async (req, res) => {
+  try {
+    const { courseCode, examType } = req.params;
+    const marks = await StudentMarks.findAll({
+      where: { courseCode, examType },
+    });
+    res.json(marks);
+  } catch (error) {
+    res.status(500).json({ error: 'Error fetching marks' });
+  }
+});
+
+
 
 
 

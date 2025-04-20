@@ -144,7 +144,22 @@ const Marks = (props) => {
         setStudents(updatedStudents);
         calculateAttemptedCount(updatedStudents);
     };
-
+    const handleRetrieveMarks = async () => {
+        try {
+            const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/student-marks/${selectedCourseCode}/${selectedType}`);
+            
+            if (response.data) {
+                setStudents(response.data);  // Update state with students' marks data
+                setAttemptedCount(response.data.length);  // Update the attempted count based on number of students
+              } else {
+                alert('No marks found for the selected course and exam type.');
+            }
+        } catch (error) {
+            console.error('Error retrieving marks:', error.response ? error.response.data : error.message);
+            alert(`Failed to retrieve marks: ${error.response ? error.response.data : error.message}`);
+        }
+    };
+   
     const handleTypeChange = (event) => {
         setSelectedType(event.target.value);
     };
@@ -278,10 +293,8 @@ const Marks = (props) => {
             const roundedAttempts = Math.round(avgAttemptsPerQuestion);
             
             // Step 3: Divide by total students
-            const coRatio = totalStudents > 0 ? (roundedAttempts / totalStudents).toFixed(3) : "0";
-            
-            coAttemptedCounts[coKey] = parseFloat(coRatio);
-    
+            const coRatio = totalStudents > 0 ? (roundedAttempts / totalStudents).toFixed(3) : "0";          
+            coAttemptedCounts[coKey] = parseFloat(coRatio);   
             totalAchieved += parseFloat(coRatio);
             totalCOs++;
         });
@@ -430,14 +443,23 @@ const Marks = (props) => {
                 </div>
             </div>
             {showMarksForm && (
-                <div>
-                    <MarksForm students={students} onMarksChange={handleMarksChange} numQuestions={numQuestions} selectedCourseCode={selectedCourseCode} selectedType={selectedType} />
-                    <h5>Number of Students Attempted Each Question:</h5>
-                    {Array.from({ length: numQuestions }).map((_, index) => (
-                        <p key={index}>Q{index + 1}: {attemptedCount[`Q${index + 1}`] || 0} students</p>
-                    ))}
-                </div>
-            )}
+        <div>
+            <MarksForm
+                students={students}
+                onMarksChange={handleMarksChange}
+                numQuestions={numQuestions}
+                selectedCourseCode={selectedCourseCode}
+                selectedType={selectedType}
+                setStudents={setStudents}
+            />
+            <h5>Number of Students Attempted Each Question:</h5>
+            {Array.from({ length: numQuestions }).map((_, index) => (
+                <p key={index}>Q{index + 1}: {attemptedCount[`Q${index + 1}`] || 0} students</p>
+            ))}
+
+        </div>
+    )}
+            
             <div className="mb-3">
     <label htmlFor="numCOs" className="form-label">Number of Course Outcomes (COs)</label>
     <input 
@@ -609,33 +631,43 @@ const Marks = (props) => {
             {Array.from({ length: numPOs }).map((_, poIndex) => (
                 <th key={poIndex}>PO{poIndex + 1}</th>
             ))}
-            <th>Average</th> {/* ✅ Ensures "Average" is added only once */}
+            <th>Average</th>
         </tr>
     </thead>
     <tbody>
-        {Object.keys(computedCoPo).map(coKey => (
+        {/* Show only attempted COs */}
+        {Object.keys(computedCoPo).filter(coKey => coAttemptedCounts[coKey]).map(coKey => (
             <tr key={coKey}>
                 <td>{coKey}</td>
-                {/* ✅ Maps only the required PO values dynamically */}
                 {Array.from({ length: numPOs }).map((_, poIndex) => {
                     const poKey = `PO${poIndex + 1}`;
                     return <td key={poKey}>{computedCoPo[coKey][poKey] || 0}</td>;
                 })}
-                <td>{coAverages[coKey]}</td> {/* ✅ Adds "Average" correctly */}
+                <td>{coAverages[coKey]}</td>
             </tr>
         ))}
-        
-        {/* ✅ Target Row (Ensures correct PO mapping) */}
+
+        {/* Target Row - Average based on only attempted COs */}
         <tr>
             <td><strong>Target</strong></td>
             {Array.from({ length: numPOs }).map((_, poIndex) => {
                 const poKey = `PO${poIndex + 1}`;
-                return <td key={poKey}><strong>{poTargetValues[poKey]}</strong></td>;
+                
+                // Average PO value for attempted COs only
+                const attemptedCOs = Object.keys(computedCoPo).filter(coKey => coAttemptedCounts[coKey]);
+                const total = attemptedCOs.reduce((sum, coKey) => {
+                    return sum + (computedCoPo[coKey][poKey] || 0);
+                }, 0);
+                const avg = attemptedCOs.length ? (total / attemptedCOs.length).toFixed(3) : 0;
+
+                return <td key={poKey}><strong>{avg}</strong></td>;
             })}
-            <td></td> {/* ✅ Prevents extra column issues */}
+            <td></td>
         </tr>
     </tbody>
 </table>
+
+
 <button className="btn btn-success" onClick={handleDownloadExcel}>Download Excel</button>
 
 
